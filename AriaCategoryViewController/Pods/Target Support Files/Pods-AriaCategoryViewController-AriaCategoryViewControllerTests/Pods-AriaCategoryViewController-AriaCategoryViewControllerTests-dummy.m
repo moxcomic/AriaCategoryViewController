@@ -1,0 +1,5 @@
+#import <Foundation/Foundation.h>
+@interface PodsDummy_Pods_AriaCategoryViewController_AriaCategoryViewControllerTests : NSObject
+@end
+@implementation PodsDummy_Pods_AriaCategoryViewController_AriaCategoryViewControllerTests
+@end

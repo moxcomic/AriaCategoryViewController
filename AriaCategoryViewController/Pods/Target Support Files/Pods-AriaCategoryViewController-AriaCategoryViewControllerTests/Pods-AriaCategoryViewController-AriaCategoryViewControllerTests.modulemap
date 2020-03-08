@@ -1,0 +1,6 @@
+framework module Pods_AriaCategoryViewController_AriaCategoryViewControllerTests {
+  umbrella header "Pods-AriaCategoryViewController-AriaCategoryViewControllerTests-umbrella.h"
+
+  export *
+  module * { export * }
+}
