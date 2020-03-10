@@ -20,13 +20,15 @@ public class AriaCategoryViewController: UIViewController {
     // MARK: - 变量
     fileprivate let ScreenWidth = UIScreen.main.bounds.width
     
-    fileprivate lazy var dataListArr = BehaviorSubject(value: [SectionModel<String, String>]())
+    fileprivate var isEdit = false
+    
+    fileprivate lazy var dataListArr = BehaviorSubject(value: [AnimatableSectionModel<String, String>]())
     
     open var dataSource: ((String?, [String]), (String?, [String]))! {
         didSet {
             dataListArr.onNext([
-                SectionModel<String, String>(model: dataSource.0.0 ?? "切换栏目", items: dataSource.0.1),
-                SectionModel<String, String>(model: dataSource.1.0 ?? "点击切换更多栏目", items: dataSource.1.1.filter { a in !dataSource.0.1.contains { b in b == a } })
+                AnimatableSectionModel<String, String>(model: dataSource.0.0 ?? "切换栏目", items: dataSource.0.1),
+                AnimatableSectionModel<String, String>(model: dataSource.1.0 ?? "点击切换更多栏目", items: dataSource.1.1.filter { a in !dataSource.0.1.contains { b in b == a } })
                 ]
             )
         }
@@ -35,7 +37,7 @@ public class AriaCategoryViewController: UIViewController {
     // MARK: - 控件
     fileprivate lazy var layout = UICollectionViewFlowLayout().then {
         $0.headerReferenceSize = CGSize(width: ScreenWidth, height: 40)
-        $0.itemSize = CGSize(width: (ScreenWidth - 15 * 5) / 4, height: 40)
+        $0.itemSize = CGSize(width: (ScreenWidth - 15 * 5) / 4, height: 30)
         $0.minimumLineSpacing = 15
         $0.minimumInteritemSpacing = 15
         $0.sectionInset = UIEdgeInsets(top: 15, left: 15, bottom: 15, right: 15)
@@ -49,13 +51,6 @@ public class AriaCategoryViewController: UIViewController {
         cv.register(cellType: NewsCategoryCollectionViewCell.self)
         return cv
     }()
-    
-    // MARK: - 系统方法
-    deinit {
-        print("[AriaCategoryViewController]: deinit")
-        guard let block = callback else { return }
-        block(self.dataSource.0.1)
-    }
 }
 
 extension AriaCategoryViewController {
@@ -68,23 +63,40 @@ extension AriaCategoryViewController {
         navigationController?.navigationBar.topItem?.title = ""
         navigationItem.title = "分类管理"
         
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "编辑", style: .plain, target: nil, action: nil)
+        navigationItem.rightBarButtonItem?.rx.tap.bind { [weak self] in
+            guard let `self` = self else { return }
+            self.isEdit = !self.isEdit
+            self.navigationItem.rightBarButtonItem?.title = self.isEdit ? "完成" : "编辑"
+            self.collectionView.reloadData()
+        }.disposed(by: rx.disposeBag)
+        
         collectionView.addToSuperview(view).makeConstraints {
             $0.edges.equalToSuperview()
         }
         
-        let dataSource = RxCollectionViewSectionedReloadDataSource<SectionModel<String, String>>(configureCell: {
-            (_, cv, ip, element) in
+        let dataSource = RxCollectionViewSectionedAnimatedDataSource<AnimatableSectionModel<String, String>>(animationConfiguration: AnimationConfiguration(insertAnimation: .top, reloadAnimation: .fade, deleteAnimation: .left), configureCell: { (_, cv, ip, element) -> UICollectionViewCell in
             let cell = cv.dequeueReusableCell(for: ip, cellType: NewsCategoryCollectionViewCell.self)
             cell.model = element
             cell.section = ip.section
+            cell.isEdit = self.isEdit
+            cell.deleteCallback = { [weak self] in
+                guard let `self` = self else { return }
+                self.collectionView.selectItem(at: ip, animated: true, scrollPosition: .top)
+            }
             return cell
-        }, configureSupplementaryView: {
-            (ds, cv, kind, ip) in
+        }, configureSupplementaryView: { (ds, cv, kind, ip) -> UICollectionReusableView in
             let view = cv.dequeueReusableSupplementaryView(ofKind: kind, for: ip, viewType: NewsCategoryHeaderView.self)
             view.model = ds[ip.section].model
             return view
-        }, canMoveItemAtIndexPath: {
-            (_, ip) in
+        }, moveItem: { [weak self] (ds, sourceIndexPath, destinationIndexPath) in
+            print("move from:\(sourceIndexPath) to:\(destinationIndexPath)")
+            guard let `self` = self else { return }
+            guard var arr = try? self.dataListArr.value() else { return }
+            self.dataSource.0.1.exchangeValue(sourceIndexPath.row, destinationIndexPath.row)
+            arr[0].items.exchangeValue(sourceIndexPath.row, destinationIndexPath.row)
+            self.dataListArr.onNext(arr)
+        }, canMoveItemAtIndexPath: { (_, ip) in
             return ip.section == 0
         })
         dataListArr.asObserver().bind(to: collectionView.rx.items(dataSource: dataSource)).disposed(by: rx.disposeBag)
@@ -116,6 +128,12 @@ extension AriaCategoryViewController {
         collectionView.rx.itemSelected.bind { [weak self] (ip) in
             guard let `self` = self else { return }
             guard var arr = try? self.dataListArr.value() else { return }
+            
+            if let cell = self.collectionView.cellForItem(at: ip) as? NewsCategoryCollectionViewCell {
+                cell.section = ip.section == 0 ? 1 : 0
+                cell.isEdit = ip.section != 0
+            }
+            
             if ip.section == 0 {
                 self.dataSource.0.1.remove(at: ip.row)
                 
@@ -129,16 +147,6 @@ extension AriaCategoryViewController {
             }
             self.dataListArr.onNext(arr)
         }.disposed(by: rx.disposeBag)
-        
-        collectionView.rx.moveItemAt.bind { [weak self] event in
-            guard let `self` = self else { return }
-            guard var arr = try? self.dataListArr.value() else { return }
-            print("source:\(event.sourceIndexPath) to:\(event.destinationIndexPath)")
-            self.dataSource.0.1.exchangeValue(event.sourceIndexPath.row, event.destinationIndexPath.row)
-            arr[0].items.exchangeValue(event.sourceIndexPath.row, event.destinationIndexPath.row)
-            self.dataListArr.onNext(arr)
-            print(arr[0].items)
-        }.disposed(by: rx.disposeBag)
     }
 }
 
@@ -147,10 +155,14 @@ public extension AriaCategoryViewController {
         super.viewWillAppear(animated)
         navigationController?.navigationBar.isHidden = false
     }
-    
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         navigationController?.navigationBar.isHidden = true
+        
+        print("[AriaCategoryViewController]: deinit")
+        guard let block = callback else { return }
+        block(self.dataSource.0.1)
     }
     
     override func viewDidLoad() {

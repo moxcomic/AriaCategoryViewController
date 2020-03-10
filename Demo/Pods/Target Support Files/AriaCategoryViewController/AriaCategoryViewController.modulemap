@@ -1,0 +1,6 @@
+framework module AriaCategoryViewController {
+  umbrella header "AriaCategoryViewController-umbrella.h"
+
+  export *
+  module * { export * }
+}

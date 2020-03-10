@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = "AriaCategoryViewController"
-  s.version          = "0.0.1"
+  s.version          = "0.0.2"
   s.summary          = "AriaCategoryViewController"
   s.homepage         = "https://github.com/moxcomic/AriaCategoryViewController.git"
   s.license          = { :type => "MIT", :file => "LICENSE" }
