@@ -93,8 +93,24 @@ extension AriaCategoryViewController {
             print("move from:\(sourceIndexPath) to:\(destinationIndexPath)")
             guard let `self` = self else { return }
             guard var arr = try? self.dataListArr.value() else { return }
-            self.dataSource.0.1.exchangeValue(sourceIndexPath.row, destinationIndexPath.row)
-            arr[0].items.exchangeValue(sourceIndexPath.row, destinationIndexPath.row)
+            if destinationIndexPath.row == 0 {
+                let item = self.dataSource.0.1[sourceIndexPath.row]
+                self.dataSource.0.1.remove(at: sourceIndexPath.row)
+                self.dataSource.0.1.insert(item, at: 0)
+                
+                arr[0].items.remove(at: sourceIndexPath.row)
+                arr[0].items.insert(item, at: 0)
+            } else if destinationIndexPath.row == arr[0].items.count - 1 {
+                let item = self.dataSource.0.1[sourceIndexPath.row]
+                self.dataSource.0.1.remove(at: sourceIndexPath.row)
+                self.dataSource.0.1.insert(item, at: destinationIndexPath.row)
+                
+                arr[0].items.remove(at: sourceIndexPath.row)
+                arr[0].items.insert(item, at: destinationIndexPath.row)
+            } else {
+                self.dataSource.0.1.exchangeValue(sourceIndexPath.row, destinationIndexPath.row)
+                arr[0].items.exchangeValue(sourceIndexPath.row, destinationIndexPath.row)
+            }
             self.dataListArr.onNext(arr)
         }, canMoveItemAtIndexPath: { (_, ip) in
             return ip.section == 0
@@ -131,7 +147,7 @@ extension AriaCategoryViewController {
             
             if let cell = self.collectionView.cellForItem(at: ip) as? NewsCategoryCollectionViewCell {
                 cell.section = ip.section == 0 ? 1 : 0
-                cell.isEdit = ip.section != 0
+                cell.deleteButton.isHidden = !(cell.section == 0 && self.isEdit)
             }
             
             if ip.section == 0 {

@@ -20,10 +20,9 @@ class NewsCategoryCollectionViewCell: UICollectionViewCell {
     
     var isEdit: Bool! {
         didSet {
+            deleteButton.isHidden = true
             if section == 0 {
                 deleteButton.isHidden = !isEdit
-            } else {
-                deleteButton.isHidden = true
             }
         }
     }
@@ -37,7 +36,7 @@ class NewsCategoryCollectionViewCell: UICollectionViewCell {
         $0.textColor(#colorLiteral(red: 0, green: 0, blue: 0, alpha: 1)).textAlignment(.center).font(.systemFont(ofSize: 13))
     }
     
-    fileprivate lazy var deleteButton = UIButton().then {
+    lazy var deleteButton = UIButton().then {
         $0.image(#imageLiteral(resourceName: "login_clear"), for: .normal, .highlighted).tap { [weak self] in
             guard let `self` = self, let block = self.deleteCallback else { return }
             block()
